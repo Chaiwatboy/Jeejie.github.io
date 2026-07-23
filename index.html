@@ -209,6 +209,13 @@
   let dataLoaded = false;
   let lastRemoteJson = null;
 
+  // Compensate for each device's clock being off vs Firebase server clock.
+  let serverTimeOffset = 0;
+  db.ref('.info/serverTimeOffset').on('value', function(snap){
+    serverTimeOffset = snap.val() || 0;
+  });
+  function now(){ return Date.now() + serverTimeOffset; }
+
   const epTabsEl = document.getElementById('epTabs');
   const mapsContainerEl = document.getElementById('mapsContainer');
   const statusBarEl = document.getElementById('statusBar');
@@ -485,7 +492,7 @@
       } else {
         const mins = getTotalMinutes(ch);
         if (!mins || mins <= 0) return;
-        ch.nextSpawn = Date.now() + mins*60000;
+        ch.nextSpawn = now() + mins*60000;
         ch.running = true;
         ch.notifiedThisCycle = false;
       }
@@ -493,13 +500,13 @@
       updateCard(ch, card);
     } else if (role === 'reset'){
       const mins = getTotalMinutes(ch);
-      ch.nextSpawn = mins ? Date.now() + mins*60000 : null;
+      ch.nextSpawn = mins ? now() + mins*60000 : null;
       ch.running = !!mins;
       ch.notifiedThisCycle = false;
       pushToFirebase();
       updateCard(ch, card);
     } else if (role === 'forceNow'){
-      ch.nextSpawn = Date.now();
+      ch.nextSpawn = now();
       ch.running = true;
       ch.notifiedThisCycle = false;
       pushToFirebase();
@@ -576,7 +583,7 @@
       return;
     }
 
-    const remainMs = ch.nextSpawn - Date.now();
+    const remainMs = ch.nextSpawn - now();
     const remainSec = Math.max(0, Math.round(remainMs/1000));
     const totalMins = getTotalMinutes(ch);
     const totalSec = totalMins * 60;
@@ -627,7 +634,7 @@
       epData.maps.forEach(function(map){
         map.channels.forEach(function(ch){
           if (ch.running && ch.nextSpawn){
-            const remainMs = ch.nextSpawn - Date.now();
+            const remainMs = ch.nextSpawn - now();
             items.push({ ep:ep, mapName:map.name, chName:ch.name, remainMs:remainMs });
           }
         });
@@ -662,7 +669,7 @@
         map.channels.forEach(function(ch){
           if (ep === state.activeEp && ch.running){
             updateCard(ch);
-          } else if (ch.running && ch.nextSpawn && Date.now() >= ch.nextSpawn && !ch.notifiedThisCycle){
+          } else if (ch.running && ch.nextSpawn && now() >= ch.nextSpawn && !ch.notifiedThisCycle){
             ch.notifiedThisCycle = true;
             notify('EP '+ep+' · '+map.name+' · '+ch.name);
             pushToFirebase();
