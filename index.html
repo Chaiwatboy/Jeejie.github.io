@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Field Boss Watch — TOSM Extreme</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root{
+    --bg-deep:#0e1a16;
+    --bg-page:#122019;
+    --surface:#1b2b24;
+    --surface-hi:#223a30;
+    --surface-map:#16241e;
+    --border:#2f4a3d;
+    --border-glow:#4a7a5f;
+    --amber:#d7a94a;
+    --amber-dim:#8a6b2e;
+    --parchment:#ece3cd;
+    --muted:#8fa393;
+    --danger:#d0574a;
+    --danger-glow:#ff7a63;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#0e1a16;}
+
+  .fb-root{
+    background:radial-gradient(ellipse at 50% -10%, #1c3327 0%, var(--bg-page) 55%, var(--bg-deep) 100%);
+    color:var(--parchment);
+    font-family:'Space Grotesk', sans-serif;
+    padding:28px 24px 36px;
+    border-radius:16px;
+    position:relative;
+    overflow:hidden;
+    max-width:1100px;
+    margin:24px auto;
+  }
+  .fb-root::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size:38px 38px;
+    opacity:0.06;
+    pointer-events:none;
+  }
+
+  .fb-header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom:18px; flex-wrap:wrap; gap:14px; position:relative; z-index:1;
+  }
+  .fb-title{ font-family:'Cinzel', serif; font-weight:700; font-size:26px; letter-spacing:0.5px; color:var(--amber); margin:0; }
+  .fb-subtitle{ font-size:13px; color:var(--muted); margin:4px 0 0; letter-spacing:0.4px; }
+  .fb-actions{ display:flex; gap:10px; align-items:center; }
+  .fb-notify-status{ font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .fb-dot{ width:7px; height:7px; border-radius:50%; background:var(--muted); display:inline-block; }
+  .fb-dot.on{ background:#7fd99a; box-shadow:0 0 6px #7fd99a; }
+
+  .fb-btn{
+    background:var(--surface); color:var(--parchment); border:1px solid var(--border); border-radius:8px;
+    padding:9px 16px; font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:500; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .fb-btn:hover{ border-color:var(--border-glow); background:var(--surface-hi); }
+  .fb-btn.primary{ background:linear-gradient(180deg,#e3ba63,#c8973b); color:#2a1d05; border:1px solid #a97e2f; font-weight:700; }
+  .fb-btn.primary:hover{ filter:brightness(1.08); }
+  .fb-btn.small{ padding:6px 12px; font-size:12px; }
+
+  .fb-status-bar{
+    display:flex; gap:10px; align-items:stretch; margin-bottom:20px; position:relative; z-index:1;
+    flex-wrap:wrap;
+  }
+  .fb-status-empty{ font-size:13px; color:var(--muted); padding:10px 2px; }
+  .fb-pill{
+    flex:0 0 auto; display:flex; flex-direction:column; gap:5px;
+    background:var(--surface); border:1px solid var(--border); border-radius:11px;
+    padding:12px 18px; cursor:pointer; transition:border-color .15s, background .15s;
+    min-width:168px;
+  }
+  .fb-pill:hover{ border-color:var(--border-glow); background:var(--surface-hi); }
+  .fb-pill .fb-pill-loc{ font-size:12px; color:var(--muted); white-space:nowrap; letter-spacing:0.2px; }
+  .fb-pill .fb-pill-time{ font-family:'JetBrains Mono', monospace; font-size:24px; font-weight:700; color:var(--amber); line-height:1.1; }
+  .fb-pill.due{ border-color:var(--danger); border-width:2px; padding:11px 17px; animation:fb-pulse 1.1s ease-in-out infinite; }
+  .fb-pill.due .fb-pill-time{ color:var(--danger); }
+
+  .fb-tabs{ display:flex; gap:8px; margin-bottom:20px; position:relative; z-index:1; flex-wrap:wrap; }
+  .fb-tab{
+    background:var(--surface); border:1px solid var(--border); color:var(--muted);
+    font-family:'Cinzel',serif; font-weight:600; font-size:13px; letter-spacing:0.4px;
+    padding:9px 18px; border-radius:8px; cursor:pointer; transition:all .15s;
+  }
+  .fb-tab:hover{ border-color:var(--border-glow); color:var(--parchment); }
+  .fb-tab.active{
+    background:linear-gradient(180deg,#2a4536,#1b2f25); border-color:var(--amber); color:var(--amber);
+    box-shadow:0 0 0 1px var(--amber-dim) inset;
+  }
+
+  .fb-map-section{ margin-bottom:22px; position:relative; z-index:1; }
+  .fb-map-head{
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:14px;
+  }
+  .fb-map-name{
+    background:transparent; border:none; color:var(--parchment); font-family:'Cinzel',serif;
+    font-weight:600; font-size:16px; padding:0; outline:none; border-bottom:1px dashed transparent;
+  }
+  .fb-map-name:focus{ border-bottom:1px dashed var(--border-glow); }
+  .fb-map-count{ font-size:11px; color:var(--muted); margin-left:10px; }
+
+  .fb-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:14px; }
+  .fb-empty-map{ font-size:12px; color:var(--muted); padding:14px 4px; border:1px dashed var(--border); border-radius:10px; text-align:center; }
+
+  .fb-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 14px 12px;
+    position:relative; transition:border-color .3s, box-shadow .3s;
+  }
+  .fb-card.due{
+    border-color:var(--danger); box-shadow:0 0 0 1px var(--danger), 0 0 22px -4px var(--danger-glow);
+    animation:fb-pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes fb-pulse{
+    0%,100%{ box-shadow:0 0 0 1px var(--danger), 0 0 22px -4px var(--danger-glow); }
+    50%{ box-shadow:0 0 0 1px var(--danger), 0 0 34px 2px var(--danger-glow); }
+  }
+  .fb-card-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .fb-name{ background:transparent; border:none; color:var(--amber); font-family:'Cinzel', serif; font-weight:600; font-size:14px; width:100%; padding:0; outline:none; }
+  .fb-remove{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:2px 4px; }
+  .fb-remove:hover{ color:var(--danger); }
+
+  .fb-ring-wrap{ position:relative; width:112px; height:112px; margin:4px auto 10px; }
+  .fb-ring-wrap svg{ transform:rotate(-90deg); }
+  .fb-ring-bg{ fill:none; stroke:var(--border); stroke-width:7; }
+  .fb-ring-fg{ fill:none; stroke:var(--amber); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset 1s linear, stroke .3s; }
+  .fb-card.due .fb-ring-fg{ stroke:var(--danger); }
+  .fb-time{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:19px; color:var(--parchment); flex-direction:column; }
+  .fb-time small{ font-family:'Space Grotesk',sans-serif; font-size:9px; color:var(--muted); font-weight:400; margin-top:2px; letter-spacing:0.5px; }
+
+  .fb-row{ display:flex; gap:8px; align-items:center; margin-bottom:7px; }
+  .fb-row label{ font-size:10px; color:var(--muted); width:42px; flex-shrink:0; }
+  .fb-select, .fb-input{ background:var(--bg-deep); border:1px solid var(--border); color:var(--parchment); border-radius:6px; padding:5px 7px; font-size:11px; width:100%; font-family:'Space Grotesk',sans-serif; }
+  .fb-select:focus, .fb-input:focus{ outline:none; border-color:var(--border-glow); }
+
+  .fb-controls{ display:flex; gap:5px; margin-top:9px; }
+  .fb-controls .fb-btn{ flex:1; padding:6px 6px; font-size:11px; text-align:center; }
+
+  @media (max-width:400px){
+    .fb-grid{ grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); }
+    .fb-ring-wrap{ width:96px; height:96px; }
+  }
+</style>
+</head>
+<body>
+<div class="fb-root">
+  <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">ตัวจับเวลาแจ้งเตือน Field Boss แยกตาม EP และแมพ สำหรับเกม TOSM Extreme</h2>
+
+  <div class="fb-header">
+    <div>
+      <p class="fb-title">Field Boss Watch</p>
+      <p class="fb-subtitle">TOSM Extreme · EP 12–18 · แมพตามเลเวลดันเจี้ยน</p>
+    </div>
+    <div class="fb-actions">
+      <span class="fb-notify-status" id="notifyStatus"><span class="fb-dot" id="notifyDot"></span><span id="notifyLabel">แจ้งเตือนปิดอยู่</span></span>
+      <button class="fb-btn" id="enableNotifyBtn">เปิดแจ้งเตือน</button>
+    </div>
+  </div>
+
+  <div class="fb-status-bar" id="statusBar"></div>
+  <div class="fb-tabs" id="epTabs"></div>
+  <div id="mapsContainer"></div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'fieldboss-ep-map-channels-v2';
+  const EP_MAP_CONFIG = {
+    12: ['Lv.90','Lv.91','Lv.92','Lv.93'],
+    13: ['Lv.95','Lv.98','Lv.101','Lv.103'],
+    14: ['Lv.105','Lv.107','Lv.109','Lv.111','Lv.113'],
+    15: ['Lv.115','Lv.118','Lv.120','Lv.123'],
+    16: ['Lv.125','Lv.128','Lv.130','Lv.133'],
+    17: ['Lv.135','Lv.138','Lv.140','Lv.143'],
+    18: ['Lv.145','Lv.148','Lv.150','Lv.153']
+  };
+  const EP_LIST = Object.keys(EP_MAP_CONFIG).map(Number);
+
+  let state = { activeEp: EP_LIST[0], eps: {} };
+
+  const epTabsEl = document.getElementById('epTabs');
+  const mapsContainerEl = document.getElementById('mapsContainer');
+
+  function genId(){
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  function getTotalMinutes(ch){
+    return (ch.hours||0)*60 + (ch.mins||0);
+  }
+
+  function defaultEps(){
+    const eps = {};
+    EP_LIST.forEach(function(ep){
+      eps[ep] = { maps: [] };
+      EP_MAP_CONFIG[ep].forEach(function(mapLabel){
+        eps[ep].maps.push({ name:mapLabel, channels:[] });
+      });
+    });
+    return eps;
+  }
+
+  function beep(){
+    try{
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime+0.4);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.6);
+      o.stop(ctx.currentTime+0.6);
+    }catch(e){}
+  }
+
+  function notify(label){
+    beep();
+    if (window.Notification && Notification.permission === 'granted'){
+      try{ new Notification('Field Boss ปรากฏตัวแล้ว', { body: label, tag: 'fieldboss-'+label }); }catch(e){}
+    }
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ console.error('save failed', e); }
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw){
+        state = JSON.parse(raw);
+      } else {
+        state = { activeEp: EP_LIST[0], eps: defaultEps() };
+        saveState();
+      }
+    }catch(e){
+      state = { activeEp: EP_LIST[0], eps: defaultEps() };
+    }
+    renderTabs();
+    renderMaps();
+    renderStatusBar();
+  }
+
+  function makeChannel(name, hours, mins){
+    return { id: genId(), name:name, hours:hours, mins:mins, nextSpawn:null, running:false, notifiedThisCycle:false };
+  }
+
+  function fmt(sec){
+    if (sec < 0) sec = 0;
+    const h = Math.floor(sec/3600);
+    const m = Math.floor((sec%3600)/60);
+    const s = Math.floor(sec%60);
+    if (h > 0) return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+
+  const RADIUS = 50;
+  const CIRC = 2*Math.PI*RADIUS;
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function renderTabs(){
+    epTabsEl.innerHTML = EP_LIST.map(function(ep){
+      const cls = ep === state.activeEp ? 'fb-tab active' : 'fb-tab';
+      return '<button class="'+cls+'" data-ep="'+ep+'">EP '+ep+'</button>';
+    }).join('');
+  }
+
+  epTabsEl.addEventListener('click', function(e){
+    const btn = e.target.closest('.fb-tab');
+    if (!btn) return;
+    state.activeEp = parseInt(btn.dataset.ep, 10);
+    saveState();
+    renderTabs();
+    renderMaps();
+  });
+
+  function cardTemplate(ch, epNum, mapIdx){
+    const h = ch.hours || 0;
+    const m = ch.mins || 0;
+
+    return (
+    '<div class="fb-card" data-ep="'+epNum+'" data-map="'+mapIdx+'" data-id="'+ch.id+'">'+
+      '<div class="fb-card-top">'+
+        '<input class="fb-name" value="'+escapeHtml(ch.name)+'" data-role="name" />'+
+        '<button class="fb-remove" data-role="remove" aria-label="ลบแชนแนล">&times;</button>'+
+      '</div>'+
+      '<div class="fb-ring-wrap">'+
+        '<svg width="112" height="112" viewBox="0 0 112 112">'+
+          '<circle class="fb-ring-bg" cx="56" cy="56" r="'+RADIUS+'"></circle>'+
+          '<circle class="fb-ring-fg" data-role="ring" cx="56" cy="56" r="'+RADIUS+'" stroke-dasharray="'+CIRC+'" stroke-dashoffset="0"></circle>'+
+        '</svg>'+
+        '<div class="fb-time"><span data-role="timeLabel">--:--</span><small data-role="stateLabel">พร้อมเริ่ม</small></div>'+
+      '</div>'+
+      '<div class="fb-row">'+
+        '<label>รอบ</label>'+
+        '<input class="fb-input" type="number" min="0" data-role="hours" value="'+h+'" placeholder="ชม." style="text-align:center; width:44px; flex:0 0 auto;" />'+
+        '<span style="font-size:11px;color:var(--muted);">ชม.</span>'+
+        '<input class="fb-input" type="number" min="0" max="59" data-role="minutes" value="'+m+'" placeholder="นาที" style="text-align:center; width:44px; flex:0 0 auto;" />'+
+        '<span style="font-size:11px;color:var(--muted);">นาที</span>'+
+      '</div>'+
+      '<div class="fb-controls">'+
+        '<button class="fb-btn" data-role="startPause">'+(ch.running ? 'พัก' : 'เริ่ม')+'</button>'+
+        '<button class="fb-btn" data-role="reset">รีเซ็ต</button>'+
+      '</div>'+
+      '<div class="fb-controls">'+
+        '<button class="fb-btn" data-role="forceNow">เกิดตอนนี้เลย</button>'+
+      '</div>'+
+    '</div>');
+  }
+
+  function mapSectionTemplate(map, epNum, mapIdx){
+    const channelsHtml = map.channels.length
+      ? '<div class="fb-grid" data-map-grid="'+mapIdx+'">'+map.channels.map(function(c){ return cardTemplate(c, epNum, mapIdx); }).join('')+'</div>'
+      : '<div class="fb-empty-map" data-map-grid="'+mapIdx+'">ยังไม่มีแชนแนลในแมพนี้</div>';
+
+    return (
+    '<div class="fb-map-section" data-map-section="'+mapIdx+'">'+
+      '<div class="fb-map-head">'+
+        '<div style="display:flex;align-items:center;">'+
+          '<input class="fb-map-name" data-role="mapName" data-map="'+mapIdx+'" value="'+escapeHtml(map.name)+'" />'+
+          '<span class="fb-map-count">'+map.channels.length+' แชนแนล</span>'+
+        '</div>'+
+        '<button class="fb-btn small primary" data-role="addChannel" data-map="'+mapIdx+'">+ เพิ่มแชนแนล</button>'+
+      '</div>'+
+      channelsHtml+
+    '</div>');
+  }
+
+  function renderMaps(){
+    const ep = state.eps[state.activeEp];
+    mapsContainerEl.innerHTML = ep.maps.map(function(map, idx){ return mapSectionTemplate(map, state.activeEp, idx); }).join('');
+  }
+
+  mapsContainerEl.addEventListener('click', function(e){
+    const ep = state.eps[state.activeEp];
+
+    const addBtn = e.target.closest('[data-role="addChannel"]');
+    if (addBtn){
+      const mapIdx = parseInt(addBtn.dataset.map, 10);
+      const map = ep.maps[mapIdx];
+      const n = map.channels.length + 1;
+      map.channels.push(makeChannel('แชนแนล '+n, 2, 0));
+      saveState();
+      renderMaps();
+      return;
+    }
+
+    const card = e.target.closest('.fb-card');
+    if (!card) return;
+    const mapIdx = parseInt(card.dataset.map, 10);
+    const chId = card.dataset.id;
+    const map = ep.maps[mapIdx];
+    const ch = map.channels.find(function(c){ return c.id === chId; });
+    if (!ch) return;
+    const role = e.target.dataset.role;
+
+    if (role === 'remove'){
+      map.channels = map.channels.filter(function(c){ return c.id !== chId; });
+      saveState();
+      renderMaps();
+    } else if (role === 'startPause'){
+      if (ch.running){
+        ch.running = false;
+      } else {
+        const mins = getTotalMinutes(ch);
+        if (!mins || mins <= 0) return;
+        ch.nextSpawn = Date.now() + mins*60000;
+        ch.running = true;
+        ch.notifiedThisCycle = false;
+      }
+      saveState();
+      updateCard(ch, card);
+    } else if (role === 'reset'){
+      const mins = getTotalMinutes(ch);
+      ch.nextSpawn = mins ? Date.now() + mins*60000 : null;
+      ch.running = !!mins;
+      ch.notifiedThisCycle = false;
+      saveState();
+      updateCard(ch, card);
+    } else if (role === 'forceNow'){
+      ch.nextSpawn = Date.now();
+      ch.running = true;
+      ch.notifiedThisCycle = false;
+      saveState();
+      updateCard(ch, card);
+    }
+  });
+
+  mapsContainerEl.addEventListener('change', function(e){
+    const ep = state.eps[state.activeEp];
+
+    if (e.target.dataset.role === 'mapName'){
+      const mapIdx = parseInt(e.target.dataset.map, 10);
+      ep.maps[mapIdx].name = e.target.value;
+      saveState();
+      return;
+    }
+
+    const card = e.target.closest('.fb-card');
+    if (!card) return;
+    const mapIdx = parseInt(card.dataset.map, 10);
+    const chId = card.dataset.id;
+    const map = ep.maps[mapIdx];
+    const ch = map.channels.find(function(c){ return c.id === chId; });
+    if (!ch) return;
+    const role = e.target.dataset.role;
+
+    if (role === 'hours'){
+      ch.hours = Math.max(0, parseInt(e.target.value, 10) || 0);
+      saveState();
+    } else if (role === 'minutes'){
+      ch.mins = Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0));
+      saveState();
+    }
+  });
+
+  mapsContainerEl.addEventListener('input', function(e){
+    const ep = state.eps[state.activeEp];
+    if (e.target.dataset.role === 'mapName'){
+      const mapIdx = parseInt(e.target.dataset.map, 10);
+      ep.maps[mapIdx].name = e.target.value;
+      return;
+    }
+    const card = e.target.closest('.fb-card');
+    if (!card) return;
+    const mapIdx = parseInt(card.dataset.map, 10);
+    const chId = card.dataset.id;
+    const map = ep.maps[mapIdx];
+    const ch = map.channels.find(function(c){ return c.id === chId; });
+    if (!ch) return;
+    if (e.target.dataset.role === 'name'){
+      ch.name = e.target.value;
+      saveState();
+    }
+  });
+
+  function updateCard(ch, cardEl){
+    const card = cardEl || mapsContainerEl.querySelector('.fb-card[data-id="'+ch.id+'"]');
+    if (!card) return;
+    const timeLabel = card.querySelector('[data-role="timeLabel"]');
+    const stateLabel = card.querySelector('[data-role="stateLabel"]');
+    const ring = card.querySelector('[data-role="ring"]');
+    const startPauseBtn = card.querySelector('[data-role="startPause"]');
+
+    if (!ch.running || !ch.nextSpawn){
+      timeLabel.textContent = '--:--';
+      stateLabel.textContent = 'พร้อมเริ่ม';
+      ring.style.strokeDashoffset = 0;
+      card.classList.remove('due');
+      startPauseBtn.textContent = 'เริ่ม';
+      return;
+    }
+
+    const remainMs = ch.nextSpawn - Date.now();
+    const remainSec = Math.max(0, Math.round(remainMs/1000));
+    const totalMins = getTotalMinutes(ch);
+    const totalSec = totalMins * 60;
+    const frac = totalSec > 0 ? Math.max(0, Math.min(1, remainSec/totalSec)) : 0;
+
+    startPauseBtn.textContent = 'พัก';
+
+    if (remainMs <= 0){
+      const elapsedSec = Math.round(-remainMs/1000);
+      timeLabel.textContent = fmt(elapsedSec);
+      stateLabel.textContent = 'เกิดแล้ว (ผ่านมา)';
+      ring.style.strokeDashoffset = 0;
+      card.classList.add('due');
+      if (!ch.notifiedThisCycle){
+        ch.notifiedThisCycle = true;
+        const ep = state.eps[state.activeEp];
+        const mapIdx = parseInt(card.dataset.map, 10);
+        const mapName = ep.maps[mapIdx] ? ep.maps[mapIdx].name : '';
+        notify('EP '+state.activeEp+' · '+mapName+' · '+ch.name);
+      }
+    } else {
+      timeLabel.textContent = fmt(remainSec);
+      stateLabel.textContent = 'จนกว่าบอสจะเกิด';
+      ring.style.strokeDashoffset = CIRC * (1 - frac);
+      card.classList.remove('due');
+    }
+  }
+
+  const statusBarEl = document.getElementById('statusBar');
+
+  statusBarEl.addEventListener('click', function(e){
+    const pill = e.target.closest('.fb-pill');
+    if (!pill) return;
+    state.activeEp = parseInt(pill.dataset.ep, 10);
+    saveState();
+    renderTabs();
+    renderMaps();
+  });
+
+  function renderStatusBar(){
+    const items = [];
+    EP_LIST.forEach(function(ep){
+      const epData = state.eps[ep];
+      if (!epData) return;
+      epData.maps.forEach(function(map){
+        map.channels.forEach(function(ch){
+          if (ch.running && ch.nextSpawn){
+            const remainMs = ch.nextSpawn - Date.now();
+            items.push({ ep:ep, mapName:map.name, chName:ch.name, remainMs:remainMs });
+          }
+        });
+      });
+    });
+
+    if (items.length === 0){
+      statusBarEl.innerHTML = '<div class="fb-status-empty">ยังไม่มีแชนแนลที่กำลังจับเวลาอยู่</div>';
+      return;
+    }
+
+    items.sort(function(a,b){ return a.remainMs - b.remainMs; });
+
+    statusBarEl.innerHTML = items.slice(0, 14).map(function(it){
+      const due = it.remainMs <= 0;
+      const timeText = due ? ('เกิดแล้ว '+fmt(Math.round(-it.remainMs/1000))) : fmt(Math.round(it.remainMs/1000));
+      return (
+        '<div class="fb-pill'+(due?' due':'')+'" data-ep="'+it.ep+'">'+
+          '<span class="fb-pill-loc">EP '+it.ep+' · '+escapeHtml(it.mapName)+' · '+escapeHtml(it.chName)+'</span>'+
+          '<span class="fb-pill-time">'+timeText+'</span>'+
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function tickAll(){
+    EP_LIST.forEach(function(ep){
+      const epData = state.eps[ep];
+      if (!epData) return;
+      epData.maps.forEach(function(map){
+        map.channels.forEach(function(ch){
+          if (ep === state.activeEp && ch.running){
+            updateCard(ch);
+          } else if (ch.running && ch.nextSpawn && Date.now() >= ch.nextSpawn && !ch.notifiedThisCycle){
+            ch.notifiedThisCycle = true;
+            notify('EP '+ep+' · '+map.name+' · '+ch.name);
+          }
+        });
+      });
+    });
+    renderStatusBar();
+  }
+  setInterval(tickAll, 1000);
+
+  function refreshNotifyStatus(){
+    const dot = document.getElementById('notifyDot');
+    const label = document.getElementById('notifyLabel');
+    const btn = document.getElementById('enableNotifyBtn');
+    if (window.Notification && Notification.permission === 'granted'){
+      dot.classList.add('on'); label.textContent = 'แจ้งเตือนเปิดอยู่'; btn.style.display = 'none';
+    } else {
+      dot.classList.remove('on'); label.textContent = 'แจ้งเตือนปิดอยู่'; btn.style.display = 'inline-block';
+    }
+  }
+  document.getElementById('enableNotifyBtn').addEventListener('click', function(){
+    if (window.Notification){ Notification.requestPermission().then(refreshNotifyStatus); }
+  });
+
+  refreshNotifyStatus();
+  loadState();
+})();
+</script>
+</body>
+</html>
