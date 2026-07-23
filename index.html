@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>Field Boss Watch — TOSM Extreme</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -52,10 +54,11 @@
   }
   .fb-title{ font-family:'Cinzel', serif; font-weight:700; font-size:26px; letter-spacing:0.5px; color:var(--amber); margin:0; }
   .fb-subtitle{ font-size:13px; color:var(--muted); margin:4px 0 0; letter-spacing:0.4px; }
-  .fb-actions{ display:flex; gap:10px; align-items:center; }
+  .fb-actions{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
   .fb-notify-status{ font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
   .fb-dot{ width:7px; height:7px; border-radius:50%; background:var(--muted); display:inline-block; }
   .fb-dot.on{ background:#7fd99a; box-shadow:0 0 6px #7fd99a; }
+  .fb-dot.err{ background:var(--danger); box-shadow:0 0 6px var(--danger-glow); }
 
   .fb-btn{
     background:var(--surface); color:var(--parchment); border:1px solid var(--border); border-radius:8px;
@@ -144,6 +147,8 @@
   .fb-controls{ display:flex; gap:5px; margin-top:9px; }
   .fb-controls .fb-btn{ flex:1; padding:6px 6px; font-size:11px; text-align:center; }
 
+  .fb-loading{ font-size:13px; color:var(--muted); padding:30px 4px; text-align:center; }
+
   @media (max-width:400px){
     .fb-grid{ grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); }
     .fb-ring-wrap{ width:96px; height:96px; }
@@ -152,14 +157,15 @@
 </head>
 <body>
 <div class="fb-root">
-  <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">ตัวจับเวลาแจ้งเตือน Field Boss แยกตาม EP และแมพ สำหรับเกม TOSM Extreme</h2>
+  <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">ตัวจับเวลาแจ้งเตือน Field Boss แยกตาม EP และแมพ สำหรับเกม TOSM Extreme ซิงค์แบบเรียลไทม์</h2>
 
   <div class="fb-header">
     <div>
       <p class="fb-title">Field Boss Watch</p>
-      <p class="fb-subtitle">TOSM Extreme · EP 12–18 · แมพตามเลเวลดันเจี้ยน</p>
+      <p class="fb-subtitle">TOSM Extreme · EP 12–18 · ซิงค์เรียลไทม์กับทุกคนที่เปิดหน้านี้</p>
     </div>
     <div class="fb-actions">
+      <span class="fb-notify-status" id="syncStatus"><span class="fb-dot" id="syncDot"></span><span id="syncLabel">กำลังเชื่อมต่อ...</span></span>
       <span class="fb-notify-status" id="notifyStatus"><span class="fb-dot" id="notifyDot"></span><span id="notifyLabel">แจ้งเตือนปิดอยู่</span></span>
       <button class="fb-btn" id="enableNotifyBtn">เปิดแจ้งเตือน</button>
     </div>
@@ -167,12 +173,27 @@
 
   <div class="fb-status-bar" id="statusBar"></div>
   <div class="fb-tabs" id="epTabs"></div>
-  <div id="mapsContainer"></div>
+  <div id="mapsContainer"><div class="fb-loading">กำลังโหลดข้อมูล...</div></div>
 </div>
 
 <script>
 (function(){
-  const STORAGE_KEY = 'fieldboss-ep-map-channels-v2';
+  // ---------- Firebase setup ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyB6M8fKp83Y2EDFpT2H5twkICI54tlSItg",
+    authDomain: "tosm-fieldboss.firebaseapp.com",
+    databaseURL: "https://tosm-fieldboss-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "tosm-fieldboss",
+    storageBucket: "tosm-fieldboss.firebasestorage.app",
+    messagingSenderId: "117597957063",
+    appId: "1:117597957063:web:ca10266623fa7a01d787e2",
+    measurementId: "G-MSH033F3B1"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const epsRef = db.ref('fieldboss/eps');
+
+  const LOCAL_TAB_KEY = 'fieldboss-active-ep-v1';
   const EP_MAP_CONFIG = {
     12: ['Lv.90','Lv.91','Lv.92','Lv.93'],
     13: ['Lv.95','Lv.98','Lv.101','Lv.103'],
@@ -184,10 +205,18 @@
   };
   const EP_LIST = Object.keys(EP_MAP_CONFIG).map(Number);
 
-  let state = { activeEp: EP_LIST[0], eps: {} };
+  let state = { activeEp: EP_LIST[0], eps: null };
+  let dataLoaded = false;
+  let lastRemoteJson = null;
 
   const epTabsEl = document.getElementById('epTabs');
   const mapsContainerEl = document.getElementById('mapsContainer');
+  const statusBarEl = document.getElementById('statusBar');
+
+  try{
+    const savedEp = localStorage.getItem(LOCAL_TAB_KEY);
+    if (savedEp && EP_LIST.includes(parseInt(savedEp,10))) state.activeEp = parseInt(savedEp,10);
+  }catch(e){}
 
   function genId(){
     if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -205,6 +234,36 @@
       EP_MAP_CONFIG[ep].forEach(function(mapLabel){
         eps[ep].maps.push({ name:mapLabel, channels:[] });
       });
+    });
+    return eps;
+  }
+
+  // Firebase stores arrays as objects if there are gaps; normalize back into arrays on read.
+  function normalizeEps(raw){
+    const eps = {};
+    EP_LIST.forEach(function(ep){
+      const epRaw = raw && raw[ep];
+      const maps = [];
+      const mapsRaw = (epRaw && epRaw.maps) ? Object.values(epRaw.maps) : [];
+      EP_MAP_CONFIG[ep].forEach(function(mapLabel, idx){
+        const mRaw = mapsRaw[idx];
+        const channelsRaw = (mRaw && mRaw.channels) ? Object.values(mRaw.channels).filter(Boolean) : [];
+        maps.push({
+          name: (mRaw && mRaw.name) ? mRaw.name : mapLabel,
+          channels: channelsRaw.map(function(c){
+            return {
+              id: c.id || genId(),
+              name: c.name || 'แชนแนล',
+              hours: c.hours || 0,
+              mins: c.mins || 0,
+              nextSpawn: c.nextSpawn || null,
+              running: !!c.running,
+              notifiedThisCycle: !!c.notifiedThisCycle
+            };
+          })
+        });
+      });
+      eps[ep] = { maps: maps };
     });
     return eps;
   }
@@ -231,27 +290,70 @@
     }
   }
 
-  function saveState(){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch(e){ console.error('save failed', e); }
+  // ---------- Firebase write (push whole eps tree, debounced) ----------
+  let writeTimer = null;
+  function pushToFirebase(){
+    clearTimeout(writeTimer);
+    writeTimer = setTimeout(function(){
+      lastRemoteJson = JSON.stringify(state.eps);
+      epsRef.set(state.eps).catch(function(err){ console.error('Firebase write failed', err); });
+    }, 150);
   }
 
-  function loadState(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw){
-        state = JSON.parse(raw);
-      } else {
-        state = { activeEp: EP_LIST[0], eps: defaultEps() };
-        saveState();
-      }
-    }catch(e){
-      state = { activeEp: EP_LIST[0], eps: defaultEps() };
+  function isEditingInsideMaps(){
+    const ae = document.activeElement;
+    return !!(ae && mapsContainerEl.contains(ae) && (ae.tagName === 'INPUT'));
+  }
+
+  // ---------- Firebase read (realtime listener) ----------
+  epsRef.on('value', function(snapshot){
+    const raw = snapshot.val();
+    const normalized = raw ? normalizeEps(raw) : defaultEps();
+    const incomingJson = JSON.stringify(normalized);
+
+    if (!dataLoaded){
+      dataLoaded = true;
+      state.eps = normalized;
+      lastRemoteJson = incomingJson;
+      if (!raw) pushToFirebase();
+      renderTabs();
+      renderMaps();
+      renderStatusBar();
+      return;
+    }
+
+    if (incomingJson === lastRemoteJson) return; // our own echo, ignore
+    lastRemoteJson = incomingJson;
+    state.eps = normalized;
+
+    if (isEditingInsideMaps()){
+      return; // don't yank focus/cursor away from someone typing
     }
     renderTabs();
     renderMaps();
     renderStatusBar();
+  }, function(err){
+    console.error('Firebase read error', err);
+    setSyncStatus(false, true);
+  });
+
+  function setSyncStatus(connected, error){
+    const dot = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    if (error){
+      dot.className = 'fb-dot err';
+      label.textContent = 'เชื่อมต่อไม่ได้';
+    } else if (connected){
+      dot.className = 'fb-dot on';
+      label.textContent = 'ซิงค์ออนไลน์';
+    } else {
+      dot.className = 'fb-dot';
+      label.textContent = 'ออฟไลน์';
+    }
   }
+  db.ref('.info/connected').on('value', function(snap){
+    setSyncStatus(snap.val() === true, false);
+  });
 
   function makeChannel(name, hours, mins){
     return { id: genId(), name:name, hours:hours, mins:mins, nextSpawn:null, running:false, notifiedThisCycle:false };
@@ -286,7 +388,7 @@
     const btn = e.target.closest('.fb-tab');
     if (!btn) return;
     state.activeEp = parseInt(btn.dataset.ep, 10);
-    saveState();
+    try{ localStorage.setItem(LOCAL_TAB_KEY, state.activeEp); }catch(e){}
     renderTabs();
     renderMaps();
   });
@@ -344,11 +446,13 @@
   }
 
   function renderMaps(){
+    if (!state.eps) return;
     const ep = state.eps[state.activeEp];
     mapsContainerEl.innerHTML = ep.maps.map(function(map, idx){ return mapSectionTemplate(map, state.activeEp, idx); }).join('');
   }
 
   mapsContainerEl.addEventListener('click', function(e){
+    if (!state.eps) return;
     const ep = state.eps[state.activeEp];
 
     const addBtn = e.target.closest('[data-role="addChannel"]');
@@ -357,7 +461,7 @@
       const map = ep.maps[mapIdx];
       const n = map.channels.length + 1;
       map.channels.push(makeChannel('แชนแนล '+n, 2, 0));
-      saveState();
+      pushToFirebase();
       renderMaps();
       return;
     }
@@ -373,7 +477,7 @@
 
     if (role === 'remove'){
       map.channels = map.channels.filter(function(c){ return c.id !== chId; });
-      saveState();
+      pushToFirebase();
       renderMaps();
     } else if (role === 'startPause'){
       if (ch.running){
@@ -385,31 +489,32 @@
         ch.running = true;
         ch.notifiedThisCycle = false;
       }
-      saveState();
+      pushToFirebase();
       updateCard(ch, card);
     } else if (role === 'reset'){
       const mins = getTotalMinutes(ch);
       ch.nextSpawn = mins ? Date.now() + mins*60000 : null;
       ch.running = !!mins;
       ch.notifiedThisCycle = false;
-      saveState();
+      pushToFirebase();
       updateCard(ch, card);
     } else if (role === 'forceNow'){
       ch.nextSpawn = Date.now();
       ch.running = true;
       ch.notifiedThisCycle = false;
-      saveState();
+      pushToFirebase();
       updateCard(ch, card);
     }
   });
 
   mapsContainerEl.addEventListener('change', function(e){
+    if (!state.eps) return;
     const ep = state.eps[state.activeEp];
 
     if (e.target.dataset.role === 'mapName'){
       const mapIdx = parseInt(e.target.dataset.map, 10);
       ep.maps[mapIdx].name = e.target.value;
-      saveState();
+      pushToFirebase();
       return;
     }
 
@@ -424,18 +529,20 @@
 
     if (role === 'hours'){
       ch.hours = Math.max(0, parseInt(e.target.value, 10) || 0);
-      saveState();
+      pushToFirebase();
     } else if (role === 'minutes'){
       ch.mins = Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0));
-      saveState();
+      pushToFirebase();
     }
   });
 
   mapsContainerEl.addEventListener('input', function(e){
+    if (!state.eps) return;
     const ep = state.eps[state.activeEp];
     if (e.target.dataset.role === 'mapName'){
       const mapIdx = parseInt(e.target.dataset.map, 10);
       ep.maps[mapIdx].name = e.target.value;
+      pushToFirebase();
       return;
     }
     const card = e.target.closest('.fb-card');
@@ -447,7 +554,7 @@
     if (!ch) return;
     if (e.target.dataset.role === 'name'){
       ch.name = e.target.value;
-      saveState();
+      pushToFirebase();
     }
   });
 
@@ -458,6 +565,7 @@
     const stateLabel = card.querySelector('[data-role="stateLabel"]');
     const ring = card.querySelector('[data-role="ring"]');
     const startPauseBtn = card.querySelector('[data-role="startPause"]');
+    if (!timeLabel) return;
 
     if (!ch.running || !ch.nextSpawn){
       timeLabel.textContent = '--:--';
@@ -488,6 +596,7 @@
         const mapIdx = parseInt(card.dataset.map, 10);
         const mapName = ep.maps[mapIdx] ? ep.maps[mapIdx].name : '';
         notify('EP '+state.activeEp+' · '+mapName+' · '+ch.name);
+        pushToFirebase();
       }
     } else {
       timeLabel.textContent = fmt(remainSec);
@@ -497,18 +606,20 @@
     }
   }
 
-  const statusBarEl = document.getElementById('statusBar');
-
   statusBarEl.addEventListener('click', function(e){
     const pill = e.target.closest('.fb-pill');
     if (!pill) return;
     state.activeEp = parseInt(pill.dataset.ep, 10);
-    saveState();
+    try{ localStorage.setItem(LOCAL_TAB_KEY, state.activeEp); }catch(e){}
     renderTabs();
     renderMaps();
   });
 
   function renderStatusBar(){
+    if (!state.eps){
+      statusBarEl.innerHTML = '<div class="fb-status-empty">กำลังโหลด...</div>';
+      return;
+    }
     const items = [];
     EP_LIST.forEach(function(ep){
       const epData = state.eps[ep];
@@ -543,6 +654,7 @@
   }
 
   function tickAll(){
+    if (!state.eps) return;
     EP_LIST.forEach(function(ep){
       const epData = state.eps[ep];
       if (!epData) return;
@@ -553,6 +665,7 @@
           } else if (ch.running && ch.nextSpawn && Date.now() >= ch.nextSpawn && !ch.notifiedThisCycle){
             ch.notifiedThisCycle = true;
             notify('EP '+ep+' · '+map.name+' · '+ch.name);
+            pushToFirebase();
           }
         });
       });
@@ -576,7 +689,6 @@
   });
 
   refreshNotifyStatus();
-  loadState();
 })();
 </script>
 </body>
